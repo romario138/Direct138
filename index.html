@@ -459,7 +459,7 @@ window.DIAL=DIAL;window.okPhone=okPhone;window.claimIdentity=claimIdentity;
 async function pub(){var m=S.me;if(!m||!m.n)return;
 var need=(m.photos||[]).some(function(x){return x&&x.indexOf("data:")===0}),urls;
 if(need){urls=[];for(var i=0;i<m.photos.length;i++){var ph=m.photos[i];if(!ph||ph.indexOf("data:")!==0){if(okUrl(ph))urls.push(ph);continue}
-try{var bl=await (await fetch(ph)).blob(),path=user.id+"/"+i+".jpg",up=await sb.storage.from("photos").upload(path,bl,{upsert:true,contentType:"image/jpeg"});
+try{var bl=await (await fetch(ph)).blob(),path=user.id+"/"+Date.now()+"_"+i+".jpg",up=await sb.storage.from("photos").upload(path,bl,{upsert:true,contentType:"image/jpeg"});
 if(up.error){console.error(up.error);continue}urls.push(sb.storage.from("photos").getPublicUrl(path).data.publicUrl+"?v="+Date.now())}catch(e){console.error(e)}}
 m.photoUrls=urls;save()}
 else{urls=(m.photoUrls&&m.photoUrls.length?m.photoUrls:(m.photos||[])).filter(okUrl)}
@@ -618,10 +618,45 @@ var oldLM=loadMembers;loadMembers=function(cb){oldLM(function(){if(CUR){var i=P.
 
 ["pointerdown","keydown","scroll","touchmove"].forEach(function(ev){document.addEventListener(ev,function(){if(S.tab!=="d"||Date.now()-LASTARM<400)return;LASTARM=Date.now();armAuto(true)},{passive:true,capture:true})});
 /* après chaque affichage : nom+âge sur la carte, minuteur, bouton "Changer ma photo" */
+
+/* ===== Gestion des photos + aides « ? » ===== */
+(function(){var st=document.createElement("style");st.textContent=".qhelp{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-left:8px;border-radius:50%;border:2px solid var(--accent);background:transparent;color:var(--accent);font:700 13px/1 inherit;cursor:pointer;vertical-align:middle;padding:0}.dmodal{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}.dmodal>div{background:var(--card);color:var(--ink);border-radius:18px;padding:18px;max-width:420px;width:100%;max-height:88vh;overflow:auto}.dmodal .ph4{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.dmodal .ph4 img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;display:block}.dmodal .ph4 .row{display:flex;gap:6px;margin-top:6px}.dmodal .ph4 .row button{flex:1;padding:8px 0;border-radius:10px;border:2px solid var(--line);background:transparent;color:var(--ink);font-size:16px}.dmodal .ph4 .row button:disabled{opacity:.35}";document.head.appendChild(st)})();
+var HELP={inscription:["Créer un compte","Saisissez votre e-mail et un mot de passe, puis renseignez votre profil. Si un e-mail de confirmation vous est envoyé, ouvrez-le pour activer votre compte."],
+numero:["Votre numéro","Saisissez votre numéro MTN ou Orange avec l’indicatif du pays. Il n’est jamais montré aux autres membres. C’est depuis ce numéro que vous paierez l’abonnement. S’il est déjà utilisé sur un autre compte, l’administration en est informée."],
+photos:["Vos photos","Ajoutez 4 photos de vous, nettes, visibles par tous les membres. Aucune photo à caractère sexuel : deux avertissements, puis blocage du compte. Une même photo ne doit pas servir sur plusieurs comptes. Plus tard, vous pourrez les remplacer, les supprimer ou changer leur ordre depuis Profil > Gérer mes photos (une photo au minimum reste obligatoire)."],
+paiement:["Payer l’abonnement","1) Envoyez 1 000 FCFA depuis votre numéro enregistré vers le numéro MTN ou Orange affiché. 2) Écrivez le code DIR-… dans le motif. 3) Saisissez l’ID de transaction reçu par SMS puis appuyez sur « J’ai payé ». L’administrateur vérifie à la main, en général sous quelques heures : rechargez la page après validation. Ne donnez jamais votre code PIN."],
+suppression:["Réinitialiser ou supprimer","Réinitialiser le profil permet de recommencer et de changer de section ; les jours d’essai déjà utilisés continuent de compter. Supprimer le compte est définitif. Votre e-mail et votre mot de passe sont demandés pour confirmer."],
+signalement:["Signaler un profil","Utilisez-le pour un contenu sexuel, un faux profil, du harcèlement ou une arnaque. L’administration examine le signalement et peut avertir, puis bannir le membre. N’en faites pas un usage abusif."]};
+function showHelp(k){var h=HELP[k];if(!h)return;var o=document.createElement("div");o.className="dmodal";o.innerHTML='<div><h3 style="margin:0 0 8px">'+esc(h[0])+'</h3><p style="line-height:1.5">'+esc(h[1])+'</p><button class="btn" type="button">Compris</button></div>';o.onclick=function(e){if(e.target===o||e.target.tagName==="BUTTON")o.remove()};document.body.appendChild(o)}
+document.addEventListener("click",function(e){var t=e.target.closest&&e.target.closest(".qhelp");if(!t)return;e.preventDefault();e.stopPropagation();showHelp(t.dataset.help)},true);
+(function(){var busy=false;function key(el){var t=(el.textContent||"").trim(),n=el.tagName;
+if(n==="H1"&&/^(Créer un compte|Connexion)/.test(t))return"inscription";
+if(n==="H1"&&/^(Supprimer mon compte|Réinitialiser mon profil)/.test(t))return"suppression";
+if(n==="H2"&&/^S’abonner/.test(t))return"paiement";
+if(n==="LABEL"&&/^Numéro de téléphone/.test(t))return"numero";
+if(n==="LABEL"&&/^Vos 4 photos/.test(t))return"photos";
+if(n==="BUTTON"&&/^Signaler ce profil/.test(t))return"signalement";return null}
+function scan(){busy=false;document.querySelectorAll("h1,h2,label,button").forEach(function(el){if(el.dataset.qd)return;var k=key(el);if(!k)return;el.dataset.qd="1";var b=document.createElement("button");b.type="button";b.className="qhelp";b.dataset.help=k;b.setAttribute("aria-label","Aide");b.textContent="?";if(el.tagName==="BUTTON")el.insertAdjacentElement("afterend",b);else el.appendChild(b)})}
+new MutationObserver(function(){if(!busy){busy=true;setTimeout(scan,150)}}).observe(document.body,{childList:true,subtree:true});setTimeout(scan,300)})();
+function pickPhoto(cb){var i=document.createElement("input");i.type="file";i.accept="image/*";i.onchange=function(){var f=i.files&&i.files[0];if(!f||!/^image\//.test(f.type))return;var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){var z=Math.min(1,480/Math.max(im.width,im.height)),cv=document.createElement("canvas");cv.width=Math.round(im.width*z);cv.height=Math.round(im.height*z);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);cb(cv.toDataURL("image/jpeg",0.72))};im.src=r.result};r.readAsDataURL(f)};i.click()}
+function openPhotoMgr(){var m=S.me;if(!m)return;var ov=document.createElement("div");ov.className="dmodal";
+function list(){return(m.photos||[]).filter(function(x){return x&&typeof x==="string"})}
+function commit(a){m.photos=a;m.photoUrls=a.filter(okUrl);m.ph=a[0]||"";save()}
+function reg(d){try{imgHash(d).then(function(h){return sb.rpc("add_photo_hash",{p_hash:h})}).catch(function(){})}catch(e){}}
+function draw(){var a=list(),h='<div><h3 style="margin:0 0 4px">Mes photos<button type="button" class="qhelp" data-help="photos">?</button></h3><p class="sub" style="margin:0">La première photo est votre photo de profil.</p><div class="ph4">';
+a.forEach(function(u,i){h+='<div><img src="'+esc(u)+'" alt="Photo '+(i+1)+'"><div class="row"><button data-a="l" data-i="'+i+'"'+(i===0?" disabled":"")+' aria-label="Avancer">◀</button><button data-a="r" data-i="'+i+'"'+(i===a.length-1?" disabled":"")+' aria-label="Reculer">▶</button><button data-a="c" data-i="'+i+'" aria-label="Remplacer">🔄</button><button data-a="d" data-i="'+i+'" aria-label="Supprimer">🗑</button></div></div>'});
+h+='</div>'+(a.length<4?'<button class="btn ghost" type="button" data-a="add" style="margin-bottom:8px">➕ Ajouter une photo</button>':'')+'<button class="btn" type="button" data-a="x">Terminer</button></div>';ov.innerHTML=h}
+ov.onclick=function(e){var b=e.target.closest("button");if(!b||b.classList.contains("qhelp"))return;var a=list(),k=b.dataset.a,i=+b.dataset.i;
+if(k==="x"){ov.remove();render();return}
+if(k==="l"||k==="r"){var j=k==="l"?i-1:i+1;var t=a[i];a[i]=a[j];a[j]=t;commit(a);toast("Ordre modifié.");draw()}
+else if(k==="d"){if(a.length<=1){toast("Gardez au moins une photo.");return}if(!confirm("Supprimer cette photo ?"))return;a.splice(i,1);commit(a);toast("Photo supprimée.");draw()}
+else if(k==="c"){pickPhoto(function(d){a[i]=d;commit(a);reg(d);toast("Photo remplacée.");draw()})}
+else if(k==="add"){pickPhoto(function(d){a.push(d);commit(a);reg(d);toast("Photo ajoutée.");draw()})}};
+draw();document.body.appendChild(ov)}
 function postRender(){buildDz();buildSearch();armAuto(true);
 if(S.tab==="p"&&S.me){var g=app.querySelector(".card .profile-gallery");
-if(g&&!document.getElementById("chPh")){g.insertAdjacentHTML("afterend",'<button class="btn ghost" id="chPh" style="margin:0 20px 10px;width:calc(100% - 40px)">📷 Changer ma photo de profil</button><input type="file" id="chPhIn" accept="image/*" hidden>');
-var inp=document.getElementById("chPhIn");document.getElementById("chPh").onclick=function(){inp.click()};
+if(g&&!document.getElementById("chPh")){g.insertAdjacentHTML("afterend",'<button class="btn ghost" id="chPh" style="margin:0 20px 10px;width:calc(100% - 40px)">📷 Gérer mes photos</button><input type="file" id="chPhIn" accept="image/*" hidden>');
+var inp=document.getElementById("chPhIn");document.getElementById("chPh").onclick=openPhotoMgr;
 inp.onchange=function(){var f=inp.files&&inp.files[0];if(!f||!/^image\//.test(f.type))return;var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){
 var z=Math.min(1,480/Math.max(im.width,im.height)),cv=document.createElement("canvas");cv.width=Math.round(im.width*z);cv.height=Math.round(im.height*z);cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
 var d=cv.toDataURL("image/jpeg",0.72);S.me.photos=(S.me.photos||[]).slice();S.me.photos[0]=d;S.me.ph=d;save();toast("Photo de profil mise à jour.");render()};im.src=r.result};r.readAsDataURL(f)}}}}
