@@ -649,7 +649,7 @@ var oldLM=loadMembers;loadMembers=function(cb){oldLM(function(){if(CUR){var i=P.
 
 /* ===== Gestion des photos + aides « ? » ===== */
 (function(){var st=document.createElement("style");st.textContent=".qhelp{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-left:8px;border-radius:50%;border:2px solid var(--accent);background:transparent;color:var(--accent);font:700 13px/1 inherit;cursor:pointer;vertical-align:middle;padding:0}.dmodal{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}.dmodal>div{background:var(--card);color:var(--ink);border-radius:18px;padding:18px;max-width:420px;width:100%;max-height:88vh;overflow:auto}.dmodal .ph4{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}.dmodal .ph4 img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;display:block}.dmodal .ph4 .row{display:flex;gap:6px;margin-top:6px}.dmodal .ph4 .row button{flex:1;padding:8px 0;border-radius:10px;border:2px solid var(--line);background:transparent;color:var(--ink);font-size:16px}.dmodal .ph4 .row button:disabled{opacity:.35}";document.head.appendChild(st)})();
-var HELP={inscription:["Créer un compte","Saisissez votre e-mail et un mot de passe, puis renseignez votre profil. Si un e-mail de confirmation vous est envoyé, ouvrez-le pour activer votre compte."],
+var HELP={inscription:["Créer un compte","Saisissez votre e-mail et un mot de passe, puis renseignez votre profil. Votre compte est activé immédiatement, aucun e-mail à confirmer."],
 numero:["Votre numéro","Saisissez votre numéro MTN ou Orange avec l’indicatif du pays. Il n’est jamais montré aux autres membres. C’est depuis ce numéro que vous paierez l’abonnement. S’il est déjà utilisé sur un autre compte, l’administration en est informée."],
 photos:["Vos photos","Ajoutez 4 photos de vous, nettes, visibles par tous les membres. Aucune photo à caractère sexuel : deux avertissements, puis blocage du compte. Au moins une photo doit montrer clairement votre visage ; avec votre accord, une analyse du visage sert à détecter les doubles comptes. Une même photo ne doit pas servir sur plusieurs comptes. Plus tard, vous pourrez les remplacer, les supprimer ou changer leur ordre depuis Profil > Gérer mes photos (il faut toujours 4 photos : supprimer une photo vous demande d’en choisir une autre à la place)."],
 paiement:["Payer l’abonnement","1) Envoyez 1 000 FCFA depuis votre numéro enregistré vers le numéro MTN ou Orange affiché. 2) Écrivez le code DIR-… dans le motif. 3) Saisissez l’ID de transaction reçu par SMS puis appuyez sur « J’ai payé ». L’administrateur vérifie à la main, en général sous quelques heures : rechargez la page après validation. Ne donnez jamais votre code PIN."],
@@ -815,7 +815,7 @@ var draft={em:""};
 function frErr(m){m=String(m||"");
 if(/Invalid login/i.test(m))return"E-mail ou mot de passe incorrect.";
 if(/already registered|already been registered/i.test(m))return"Un compte existe déjà avec cet e-mail.";
-if(/not confirmed/i.test(m))return"Confirmez d’abord votre e-mail (vérifiez aussi vos spams), puis connectez-vous.";
+if(/not confirmed/i.test(m))return"Ce compte n’est pas encore activé. Contactez le support pour l’activer.";
 if(/rate limit|too many|security purposes/i.test(m))return"Trop de tentatives. Patientez quelques minutes puis réessayez.";
 if(/different from the old/i.test(m))return"Choisissez un mot de passe différent de l’ancien.";
 if(/at least|too short|weak/i.test(m))return"Mot de passe trop court ou trop faible (6 caractères minimum).";
@@ -877,10 +877,15 @@ var em=document.getElementById("em").value.trim(),pw=document.getElementById("pw
 if(!em||pw.length<6){e.textContent="Entrez un e-mail et un mot de passe de 6 caractères minimum.";return}
 if(up&&!document.getElementById("cg").checked){e.textContent="Cochez la case pour confirmer que vous avez 18 ans ou plus et accepter les conditions.";return}
 b.disabled=true;
-(up?sb.auth.signUp({email:em,password:pw,options:{data:{terms_version:LEGAL.ver,terms_accepted_at:new Date().toISOString()}}}):sb.auth.signInWithPassword({email:em,password:pw})).then(function(r){
+(up?sb.auth.signUp({email:em,password:pw,options:{emailRedirectTo:location.origin+location.pathname,data:{terms_version:LEGAL.ver,terms_accepted_at:new Date().toISOString()}}}):sb.auth.signInWithPassword({email:em,password:pw})).then(function(r){
 b.disabled=false;
 if(r.error){var m=r.error.message||"";e.textContent=/email_blocked/.test(m)?"Les adresses e-mail jetables ne sont pas acceptées. Utilisez votre vraie adresse.":/email_taken/.test(m)?"Cette adresse e-mail est déjà utilisée.":/Database error/i.test(m)?"Cette adresse e-mail n’est pas acceptée ou est déjà utilisée.":frErr(m);return}
-if(!r.data.session){e.textContent="Compte créé. Vérifiez votre e-mail (et vos spams) pour confirmer, puis connectez-vous.";return}
+if(!r.data.session){
+/* inscription directe : connexion automatique, sans passer par l’e-mail */
+b.disabled=true;e.className="sub";e.textContent="Compte créé, connexion…";
+sb.auth.signInWithPassword({email:em,password:pw}).then(function(r2){b.disabled=false;e.className="err";
+if(r2.error||!r2.data||!r2.data.session){e.textContent="Compte créé. Appuyez sur « J’ai déjà un compte » puis connectez-vous.";return}
+e.textContent="";start(r2.data.session)});return}
 start(r.data.session)})}}
 function forgotView(){
 app.innerHTML='<header><div class="logo">direct<i>.com</i></div></header><main><h1>Mot de passe oublié</h1><p class="sub">Entrez votre e-mail : nous vous enverrons un lien pour choisir un nouveau mot de passe.</p><label for="em">E-mail</label><input id="em" type="email" autocomplete="email" value="'+esc(draft.em||"")+'"><p class="err" id="e" role="alert"></p><button class="btn" id="ok">Envoyer le lien</button><p style="text-align:center"><button class="small" id="bk">Retour à la connexion</button></p></main>';
