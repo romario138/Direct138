@@ -441,7 +441,7 @@ setBg();
 <script>
 (function(){
 if(!window.supabase){return}
-var recov=/type=recovery/.test(location.hash),linkErr=/error_code=otp_expired|error=access_denied/.test(location.hash);
+var conf=/type=signup/.test(location.hash),recov=/type=recovery/.test(location.hash),linkErr=/error_code=otp_expired|error=access_denied/.test(location.hash);
 var sb=window.supabase.createClient("https://veligenonscgpygdfbro.supabase.co","sb_publishable_ALmb4YyVoIEbZGmYosd4Yw_BPUHnlSP");
 (function(){var n=0,el=null,st=document.createElement("style");st.textContent=".wspin{width:48px;height:48px;border-radius:50%;border:5px solid rgba(255,255,255,.25);border-top-color:#C084FC;animation:wsp 1s linear infinite}@keyframes wsp{to{transform:rotate(360deg)}}";document.head.appendChild(st);
 window.wShow=function(m){n++;if(!el){el=document.createElement("div");el.style.cssText="position:fixed;inset:0;z-index:100000;background:rgba(10,10,30,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff;text-align:center;padding:24px;font:600 19px 'DM Sans',system-ui,sans-serif";el.setAttribute("role","alert");el.innerHTML='<div class="wspin"></div><div id="wmsg"></div><div style="font-size:14px;font-weight:400;opacity:.8">Ne fermez pas la page.</div>';document.body.appendChild(el)}document.getElementById("wmsg").textContent=m||"Veuillez patienter…"};
@@ -884,7 +884,7 @@ if(!r.data.session){
 /* inscription directe : connexion automatique, sans passer par l’e-mail */
 b.disabled=true;e.className="sub";e.textContent="Compte créé, connexion…";
 sb.auth.signInWithPassword({email:em,password:pw}).then(function(r2){b.disabled=false;e.className="err";
-if(r2.error||!r2.data||!r2.data.session){e.textContent="Compte créé. Appuyez sur « J’ai déjà un compte » puis connectez-vous.";return}
+if(r2.error||!r2.data||!r2.data.session){e.innerHTML='<b>Compte créé ! Confirmez votre e-mail.</b><br>Ouvrez Gmail. Si le message de direct.com n’est pas dans « Boîte de réception », regardez dans le dossier <b>Spam</b> (« Courrier indésirable »).<br><br><b>Sur Gmail :</b> appuyez sur le menu ☰ en haut à gauche, puis sur <b>« Spam »</b>. Ouvrez le message et appuyez sur le lien, puis connectez-vous.';return}
 e.textContent="";start(r2.data.session)});return}
 start(r.data.session)})}}
 function forgotView(){
@@ -897,7 +897,7 @@ b.disabled=true;
 sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname}).then(function(r){
 b.disabled=false;
 if(r.error){e.textContent=frErr(r.error.message);return}
-e.className="sub";e.textContent="Si un compte existe avec cet e-mail, un lien vient d’être envoyé. Pensez à vérifier vos spams.";b.style.display="none"})}}
+e.className="sub";e.innerHTML='<b>Un e-mail vient d’être envoyé.</b><br>Ouvrez votre messagerie (Gmail…). Si vous ne le voyez pas dans « Boîte de réception », regardez dans le dossier <b>Spam</b> (aussi appelé « Courrier indésirable »).<br><br><b>Sur Gmail :</b> appuyez sur le menu ☰ en haut à gauche, puis sur <b>« Spam »</b>. Ouvrez le message de direct.com et appuyez sur le lien.';b.style.display="none"})}}
 function resetView(){document.documentElement.setAttribute("data-g","");
 app.innerHTML='<header><div class="logo">direct<i>.com</i></div></header><main><h1>Nouveau mot de passe</h1><label for="np">Nouveau mot de passe (6 caractères minimum)</label><input id="np" type="password" autocomplete="new-password"><label for="np2">Confirmez le mot de passe</label><input id="np2" type="password" autocomplete="new-password"><p class="err" id="e" role="alert"></p><button class="btn" id="ok">Enregistrer</button></main>';
 document.getElementById("ok").onclick=function(){
@@ -919,7 +919,14 @@ var c=r.data&&r.data.data;
 if(c){S=Object.assign(S,c,{tab:"d",chat:null,detail:null});if(S.me){S.me.ph=loc&&loc.ph||"";S.me.photos=loc&&loc.photos&&loc.photos.length?loc.photos:(S.me.photoUrls||[])}}
 applySub();loaded=true;baseSave();if(!c){save()}pub();loadMembers(function(){loadConv(function(){render();listen()})});if(warnInfo)setTimeout(function(){toast("Avertissement "+warnInfo.warnings+" sur 2 : les photos ne doivent contenir aucun caractère sexuel. Au deuxième avertissement, votre compte sera bloqué.")},800);setInterval(function(){loadNotifs();loadSub(user.id,function(){var was=daysLeft()<=0&&!subscriptionActive();applySub();if(was&&(daysLeft()>0||subscriptionActive()))render();loadMembers(function(){loadConv()})})},60000)})}
 sb.auth.onAuthStateChange(function(ev){if(ev==="PASSWORD_RECOVERY"){recov=true;resetView()}});
-sb.auth.getSession().then(function(r){if(recov&&r.data&&r.data.session){resetView();return}if(r.data&&r.data.session){start(r.data.session)}else{render()}});
+sb.auth.getSession().then(function(r){
+if(conf&&r.data&&r.data.session){var ce=r.data.session.user.email||"";
+try{history.replaceState(null,"",location.pathname+location.search)}catch(x){}
+sb.auth.signOut({scope:"local"}).then(function(){draft.em=ce;mode="in";authView();
+var pw=document.getElementById("pw"),er=document.getElementById("e");
+if(er){er.className="sub";er.innerHTML="<b>✅ E-mail confirmé !</b> Saisissez le mot de passe choisi à l’inscription pour vous connecter."}
+if(pw)pw.focus()});return}
+if(recov&&r.data&&r.data.session){resetView();return}if(r.data&&r.data.session){start(r.data.session)}else{render()}});
 })();
 </script>
 <style>
