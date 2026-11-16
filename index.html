@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>direct.com — version abonnement</title>
-<meta name="theme-color" content="#7C3AED">
-<meta name="description" content="Prototype local de direct.com, application de rencontres réservée aux adultes.">
+<title>direct.com</title>
+<meta name="theme-color" content="#7C3AED"><link rel="manifest" href="manifest.json"><link rel="icon" type="image/png" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<meta name="description" content="direct.com, application de rencontres réservée aux adultes.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -1065,5 +1065,23 @@ main:has(#dz) #sp:not([hidden]){flex:none}
 })();
 </script>
 
+<script>if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script>
+<script>
+(function(){var dp=null,K="direct_inst_x";
+function seen(){try{return localStorage.getItem(K)}catch(e){return null}}
+function mark(){try{localStorage.setItem(K,"1")}catch(e){}}
+function standalone(){return (window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone}
+function hide(){var b=document.getElementById("instb");if(b)b.remove()}
+function show(){if(!dp||standalone()||seen()||document.getElementById("instb"))return;
+var b=document.createElement("div");b.id="instb";
+b.style.cssText="position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:90;display:flex;gap:8px;align-items:center;background:#181B36;color:#fff;border:1px solid rgba(167,139,250,.6);border-radius:999px;padding:7px 8px 7px 16px;box-shadow:0 6px 24px rgba(0,0,0,.45);font:600 14px 'DM Sans',system-ui,sans-serif;white-space:nowrap";
+b.innerHTML='<span>📲 Installer direct.com</span><button type="button" id="instgo" style="border:0;border-radius:999px;padding:8px 14px;font:700 14px inherit;color:#fff;background:linear-gradient(135deg,#7C3AED,#A855F7);cursor:pointer">Installer</button><button type="button" id="instx" aria-label="Fermer" style="border:0;background:none;color:#fff;font-size:16px;padding:6px 8px;cursor:pointer">✕</button>';
+document.body.appendChild(b);
+document.getElementById("instgo").onclick=function(){if(!dp)return;dp.prompt();dp.userChoice.then(function(){dp=null;hide()}).catch(function(){hide()})};
+document.getElementById("instx").onclick=function(){mark();hide()}}
+window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();dp=e;show()});
+window.addEventListener("appinstalled",function(){dp=null;hide()});
+})();
+</script>
 </body>
 </html>
